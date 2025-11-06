@@ -3,12 +3,13 @@
   --verde-claro: #E6F4ED;
 }
 
-body, html, #root {
+/* Aplica estilos base e imagem de fundo */
+html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: Arial, sans-serif;
-  background-color: var(--verde-claro);
+  font-family: 'Open Sans', Arial, sans-serif;
+
 }
 
 .App {

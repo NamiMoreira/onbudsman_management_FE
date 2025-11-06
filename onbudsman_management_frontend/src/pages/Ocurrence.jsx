@@ -1,239 +1,160 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import { io } from "socket.io-client";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-export default function WhatsAppChat() {
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('whatsappMessages');
-    return saved ? JSON.parse(saved) : [];
-  });
+const socket = io("http://192.168.30.26:8090", {
+  transports: ["websocket"],
+});
 
-  const [input, setInput] = useState('');
-  const [protocolo, setProtocolo] = useState(null);
+export default function ChatPage() {
+  const [messages, setMessages] = useState([
+    {
+      id: Date.now(),
+      from: "bot",
+      text: "Olá!\n Digite seu nome para começarmos.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [isBotTyping, setIsBotTyping] = useState(false);
   const messagesEndRef = useRef(null);
+  const mounted = useRef(true);
+  const typingTimeout = useRef(null);
 
-  // Scrolla para última mensagem
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useLayoutEffect(scrollToBottom, [messages, isBotTyping]);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    mounted.current = true;
 
-  // Salva mensagens no localStorage
+    const handleBotResponse = (msg) => {
+      if (!mounted.current) return;
 
+      clearTimeout(typingTimeout.current);
+      setIsBotTyping(true);
 
-  // Saudação inicial com pedido do protocolo (executa só uma vez)
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: Date.now(),
-          text: 'Olá! Por favor, insira o número do protocolo para começarmos.',
-          sender: 'other',
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
-    }
+      const delay = Math.min(800, 200 + msg.text.length * 15);
+
+      typingTimeout.current = setTimeout(() => {
+        if (!mounted.current) return;
+
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now() + Math.random(), from: "bot", text: msg.text },
+        ]);
+        setIsBotTyping(false);
+      }, delay);
+    };
+
+    socket.on("botResponse", handleBotResponse);
+
+    return () => {
+      mounted.current = false;
+      clearTimeout(typingTimeout.current);
+      socket.off("botResponse", handleBotResponse);
+    };
   }, []);
 
-  // Envia mensagem
-  const sendMessage = () => {
+  const handleSend = () => {
     if (!input.trim()) return;
+    const userMsg = input.trim();
 
-    if (!protocolo) {
-      // O que a pessoa digitou é o protocolo
-      setProtocolo(input.trim());
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          text: `Número do protocolo registrado: ${input.trim()}`,
-          sender: 'me',
-          timestamp: new Date().toLocaleTimeString(),
-        },
-        {
-          id: Date.now() + 1,
-          text: 'Protocolo recebido! Aguarde enquanto verifico.',
-          sender: 'other',
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
-      setInput('');
-    } else {
-      // Envio normal da mensagem
-      const newMsg = {
-        id: Date.now(),
-        text: input.trim(),
-        sender: 'me',
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      setMessages(prev => [...prev, newMsg]);
-      setInput('');
-    }
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now() + Math.random(), from: "user", text: userMsg },
+    ]);
+    setInput("");
+    setIsBotTyping(true);
+
+    socket.emit("userOption", userMsg);
   };
-
-  // Enter envia mensagem, Shift+Enter pula linha
-  const handleKeyDown = e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  // Simular resposta automática só depois do protocolo
-  useEffect(() => {
-    if (messages.length === 0 || !protocolo) return;
-
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg.sender === 'me') {
-      const timeout = setTimeout(() => {
-        setMessages(prev => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            text: 'Recebido! 👍',
-            sender: 'other',
-            timestamp: new Date().toLocaleTimeString(),
-          },
-        ]);
-      }, 1500);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [messages, protocolo]);
 
   return (
-    <div style={styles.chatContainer}>
-      <div style={styles.header}>Chat do Processo</div>
-
-      <div style={styles.messagesContainer}>
-        {messages.length === 0 && (
-          <div style={styles.noMessages}>Carregando...</div>
-        )}
-
-        {messages.map(msg => (
+    <div
+      className=""
+      style={{
+        
+        paddingTop: "30px", // adiciona um respiro no topo
+      }}
+    >
+      <div
+        className="container d-flex justify-content-center"
+        
+      >
+        <div
+          className="card shadow-lg w-100"
+          style={{
+            maxWidth: "800px",
+            height: "70vh",
+            borderRadius: "12px",
+          }}
+        >
           <div
-            key={msg.id}
-            style={{
-              ...styles.message,
-              ...(msg.sender === 'me'
-                ? styles.messageRight
-                : styles.messageLeft),
-            }}
+            className="card-header text-white text-center fw-bold"
+            style={{ backgroundColor: "#00995D" }}
           >
-            <div style={styles.messageText}>{msg.text}</div>
-            <div style={styles.timestamp}>{msg.timestamp}</div>
+            Atendimento Virtual Unimed
           </div>
-        ))}
 
-        <div ref={messagesEndRef} />
-      </div>
+          <div
+            className="flex-grow-1 p-3 overflow-auto"
+            style={{ backgroundColor: "#f8f9fa" }}
+          >
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`d-flex mb-3 ${
+                  msg.from === "user"
+                    ? "justify-content-end"
+                    : "justify-content-start"
+                }`}
+              >
+                <div
+                  className={`p-3 rounded-3 ${
+                    msg.from === "user"
+                      ? "bg-success text-white"
+                      : "bg-white border text-dark"
+                  }`}
+                  style={{ maxWidth: "70%", whiteSpace: "pre-line" }}
+                  dangerouslySetInnerHTML={{ __html: msg.text }}
+                ></div>
+              </div>
+            ))}
 
-      <div style={styles.inputContainer}>
-        <textarea
-          placeholder={
-            protocolo
-              ? 'Digite sua mensagem...'
-              : 'Digite o número do protocolo aqui...'
-          }
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          style={styles.textarea}
-          disabled={false}
-        />
-        <button onClick={sendMessage} style={styles.sendButton}>
-          {protocolo ? 'Enviar' : 'Enviar Protocolo'}
-        </button>
+            {isBotTyping && (
+              <div className="d-flex mb-3 justify-content-start">
+                <div className="p-3 rounded-3 bg-white border text-dark">
+                  <span>Digitando...</span>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="card-footer bg-white border-top p-3">
+            <div className="input-group">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Digite sua mensagem..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              />
+              <button
+                className="btn text-white"
+                style={{ backgroundColor: "#00995D" }}
+                onClick={handleSend}
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  chatContainer: {
-    maxWidth: '900px',
-    width: '90vw',
-    height: '80vh',
-    margin: '20px auto',
-    display: 'flex',
-    flexDirection: 'column',
-    border: '1px solid #ccc',
-    borderRadius: '8px',
-    backgroundColor: '#e5ddd5',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  header: {
-    padding: '15px',
-    backgroundColor: '#075e54',
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontSize: '22px',
-    borderTopLeftRadius: '8px',
-    borderTopRightRadius: '8px',
-  },
-  messagesContainer: {
-    flex: 1,
-    padding: '15px',
-    overflowY: 'auto',
-    backgroundColor: '#ece5dd',
-  },
-  noMessages: {
-    color: '#999',
-    textAlign: 'center',
-    marginTop: '30px',
-    fontSize: '18px',
-  },
-  message: {
-    maxWidth: '70%',
-    marginBottom: '12px',
-    padding: '12px 16px',
-    borderRadius: '20px',
-    position: 'relative',
-    wordBreak: 'break-word',
-    fontSize: '16px',
-  },
-  messageLeft: {
-    backgroundColor: 'white',
-    alignSelf: 'flex-start',
-    borderTopLeftRadius: 0,
-  },
-  messageRight: {
-    backgroundColor: '#dcf8c6',
-    alignSelf: 'flex-end',
-    borderTopRightRadius: 0,
-  },
-  messageText: {
-    marginBottom: '6px',
-  },
-  timestamp: {
-    fontSize: '12px',
-    color: '#999',
-    textAlign: 'right',
-  },
-  inputContainer: {
-    display: 'flex',
-    padding: '15px',
-    backgroundColor: '#f0f0f0',
-    borderBottomLeftRadius: '8px',
-    borderBottomRightRadius: '8px',
-  },
-  textarea: {
-    flex: 1,
-    resize: 'none',
-    borderRadius: '24px',
-    border: '1px solid #ccc',
-    padding: '12px 16px',
-    fontSize: '16px',
-    outline: 'none',
-  },
-  sendButton: {
-    marginLeft: '15px',
-    backgroundColor: '#075e54',
-    border: 'none',
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '24px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '16px',
-  },
-};

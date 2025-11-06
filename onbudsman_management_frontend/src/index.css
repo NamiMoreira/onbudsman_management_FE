@@ -1,3 +1,10 @@
 body {
-  font-family: 'Open Sans'; /* ou 'Roboto', 'Open Sans', etc */
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+ background-color: #E6F4ED ;
+  background-size: cover;      /* cobre toda a tela */
+  background-repeat: no-repeat;
+  background-position: center; /* centraliza a imagem */
+  font-family: Arial, sans-serif;
 }
