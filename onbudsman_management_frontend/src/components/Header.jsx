@@ -19,7 +19,7 @@ export default function Header() {
             />
           </div>
           <div>
-            <h1 className="h2 mb-0">ORM</h1>
+            <h1 className="h2 mb-0">OBD</h1>
             <p className="mb-0 small">Manifestações Ouvidoria</p>
           </div>
         </div>
